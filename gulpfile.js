@@ -7,7 +7,8 @@ const cssbeautify = require('gulp-cssbeautify');
 const removeComments = require('gulp-strip-css-comments');
 const rename = require('gulp-rename');
 const rigger = require('gulp-rigger');
-const sass = require('gulp-sass')(require('sass'));
+const GulpSass = require('gulp-sass');
+const sass = require('sass');
 const cssnano = require('gulp-cssnano');
 const uglify = require('gulp-uglify');
 const plumber = require('gulp-plumber');
@@ -18,9 +19,7 @@ const browserSync = require('browser-sync').create();
 const webpack = require('webpack-stream');
 const postcss = require('gulp-postcss');
 const svgSprite = require('gulp-svg-sprite');
-const gulpZip = () => import('gulp-zip');
-const ftp = require('vinyl-ftp');
-const fs = require('fs');
+const replace = require('gulp-replace');
 const fileinclude = require('gulp-file-include');
 
 /* path */
@@ -70,12 +69,14 @@ function html() {
             prefix: '@@',
             basepath: '@file'
         }))
+        .pipe(replace('href="./assets/scss/style.scss"', 'href="./assets/css/style.min.css"')) // Replace the stylesheet path
         .pipe(dest(path.build.html))
         .pipe(browserSync.reload({ stream: true }));
 }
 
 // CSS
 function css() {
+    const sassCompiler = GulpSass(sass);
     return src(path.src.css, {base: srcPath + "assets/scss/"})
         .pipe(plumber({
             errorHandler: notify.onError(err => ({
@@ -89,6 +90,7 @@ function css() {
         .pipe(dest(path.build.css))
         .pipe(cssnano())
         .pipe(removeComments())
+        .pipe(sassCompiler({outputStyle:"expanded"}))
         .pipe(rename({ suffix: ".min" }))
         .pipe(dest(path.build.css))
         .pipe(browserSync.reload({ stream: true }));
@@ -139,12 +141,11 @@ function watchFiles() {
 
 // Задача для архивирования
 async function createZip() {
-    const { default: gulpZip } = await gulpZip();
-    return gulp.src('dist/**/*')
+    const { default: gulpZip } = await import('gulp-zip');
+    return src('dist/**/*')
         .pipe(gulpZip('archive.zip'))
-        .pipe(gulp.dest('zip'));
+        .pipe(dest('zip'));
 }
-
 // Build
 const build = series(clean, parallel(html, css, js, img, fonts));
 
